@@ -1,106 +1,98 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Bonus Collector Waypoint</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background: #1e1e1e;
-            color: white;
             margin: 0;
-            padding: 20px;
+            background: transparent;
+            color: white;
+            font-family: Arial, sans-serif;
         }
-        #status {
-            margin-top: 20px;
-            font-size: 18px;
+
+        #notification {
+            position: fixed;
+            top: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 20px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: top 0.5s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        #notification img {
+            height: 40px;
+            width: 40px;
+        }
+
+        .notification-text {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .bold-text {
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .small-text {
+            font-size: 12px;
+            opacity: 0.8;
         }
     </style>
 </head>
 <body>
-    <h1>Bonus Collector Waypoint Setter</h1>
-    <div id="status">Loading...</div>
+    <div id="notification">
+        <img src="red.png" alt="Alert">
+        <div class="notification-text">
+            <span class="bold-text">Your Businesses are ready to collect</span>
+            <span class="small-text">Head to your faction headquarter or Pacific Bank to collect your businesses at once or collect them one by one</span>
+        </div>
+    </div>
+
+    <audio id="alertSound">
+        <source src="notifications.mp3" type="audio/mpeg">
+    </audio>
 
     <script>
-        const apiKey = "178697_XuLpuoXZGGEAhaLfrg"; // Your public API key
-        const blipName = "Bonus Collector"; // Name of the blip to search for
+        let lastTriggeredHour = -1;
+        const targetHours = [0, 3, 6, 9, 12, 15, 18, 21]; // GMT+3 hours
 
-        // Function to fetch map data
-        async function fetchMapData() {
-            const url = `https://v1.api.tycoon.community/main/map/positions.json`; // Replace with the correct API endpoint
-            const headers = {
-                "X-Tycoon-Key": apiKey,
-            };
+        function checkTime() {
+            const now = new Date();
+            const gmt3Hour = (now.getUTCHours() + 3) % 24;
+            const minutes = now.getUTCMinutes();
 
-            try {
-                const response = await fetch(url, { headers });
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-                const data = await response.json();
-                return data;
-            } catch (error) {
-                console.error("Failed to fetch map data:", error);
-                return null;
+            if (targetHours.includes(gmt3Hour) && minutes === 0 && lastTriggeredHour !== gmt3Hour) {
+                showNotification();
+                lastTriggeredHour = gmt3Hour;
             }
         }
 
-        // Function to find the blip by name
-        function findBlipByName(data, name) {
-            if (!data.players) return null;
+        function showNotification() {
+            const notification = document.getElementById('notification');
+            const audio = document.getElementById('alertSound');
 
-            // Iterate through players and their blips
-            for (const player of data.players) {
-                if (player.blips) {
-                    for (const blip of player.blips) {
-                        if (blip.name === name) {
-                            return blip;
-                        }
-                    }
-                }
-            }
-            return null;
+            // Set volume to 30%
+            audio.volume = 0.3;
+
+            // Show notification
+            notification.style.top = '20px';
+            audio.play().catch(error => console.log('Audio play failed:', error));
+
+            // Hide after 30 seconds
+            setTimeout(() => {
+                notification.style.top = '-100px';
+            }, 30000); // 30 seconds
         }
 
-        // Function to set a waypoint
-        function setWaypoint(x, y) {
-            const command = {
-                type: "setWaypoint",
-                x: x,
-                y: y,
-            };
-            // Send the command to the game client
-            window.postMessage({ type: "command", payload: command }, "*");
-            console.log(`Waypoint set at X: ${x}, Y: ${y}`);
-        }
-
-        // Main function
-        async function main() {
-            const status = document.getElementById("status");
-            status.textContent = "Fetching map data...";
-
-            const mapData = await fetchMapData();
-            if (!mapData) {
-                status.textContent = "Failed to fetch map data.";
-                return;
-            }
-
-            status.textContent = "Searching for blip...";
-            const blip = findBlipByName(mapData, blipName);
-
-            if (!blip) {
-                status.textContent = `Blip "${blipName}" not found.`;
-                return;
-            }
-
-            const { x, y } = blip.position;
-            status.textContent = `Found blip "${blipName}" at X: ${x}, Y: ${y}. Setting waypoint...`;
-
-            setWaypoint(x, y);
-            status.textContent = `Waypoint set at X: ${x}, Y: ${y}.`;
-        }
-
-        // Run the main function
-        main();
+        // Check time every minute
+        setInterval(checkTime, 60000);
+        checkTime(); // Initial check
     </script>
 </body>
 </html>
