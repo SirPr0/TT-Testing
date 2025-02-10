@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bonus Collector Waypoint</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1e1e1e;
+            color: white;
+            margin: 0;
+            padding: 20px;
+        }
+        #status {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Bonus Collector Waypoint Setter</h1>
+    <div id="status">Loading...</div>
+
+    <script>
+        const apiKey = "178697_XuLpuoXZGGEAhaLfrg"; // Your public API key
+        const blipName = "Bonus Collector"; // Name of the blip to search for
+
+        // Function to fetch map data
+        async function fetchMapData() {
+            const url = `https://v1.api.tycoon.community/main/map/positions.json`; // Replace with the correct API endpoint
+            const headers = {
+                "X-Tycoon-Key": apiKey,
+            };
+
+            try {
+                const response = await fetch(url, { headers });
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error("Failed to fetch map data:", error);
+                return null;
+            }
+        }
+
+        // Function to find the blip by name
+        function findBlipByName(data, name) {
+            if (!data.players) return null;
+
+            // Iterate through players and their blips
+            for (const player of data.players) {
+                if (player.blips) {
+                    for (const blip of player.blips) {
+                        if (blip.name === name) {
+                            return blip;
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        // Function to set a waypoint
+        function setWaypoint(x, y) {
+            const command = {
+                type: "setWaypoint",
+                x: x,
+                y: y,
+            };
+            // Send the command to the game client
+            window.postMessage({ type: "command", payload: command }, "*");
+            console.log(`Waypoint set at X: ${x}, Y: ${y}`);
+        }
+
+        // Main function
+        async function main() {
+            const status = document.getElementById("status");
+            status.textContent = "Fetching map data...";
+
+            const mapData = await fetchMapData();
+            if (!mapData) {
+                status.textContent = "Failed to fetch map data.";
+                return;
+            }
+
+            status.textContent = "Searching for blip...";
+            const blip = findBlipByName(mapData, blipName);
+
+            if (!blip) {
+                status.textContent = `Blip "${blipName}" not found.`;
+                return;
+            }
+
+            const { x, y } = blip.position;
+            status.textContent = `Found blip "${blipName}" at X: ${x}, Y: ${y}. Setting waypoint...`;
+
+            setWaypoint(x, y);
+            status.textContent = `Waypoint set at X: ${x}, Y: ${y}.`;
+        }
+
+        // Run the main function
+        main();
+    </script>
+</body>
+</html>
